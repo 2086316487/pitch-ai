@@ -51,13 +51,57 @@ export async function POST(request: NextRequest) {
           // 开始流式生成内容
           const generator = generateBusinessPlanStream(elements);
 
+          let buffer = ''; // 用于累积和过滤内容
+          let insideThinkTag = false; // 跟踪是否在<think>标签内
+
           for await (const chunk of generator) {
-            fullContent += chunk;
-            const contentChunk = {
-              type: 'content',
-              data: chunk,
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentChunk)}\n\n`));
+            buffer += chunk;
+
+            // 移除所有完整的<think>...</think>标签内容
+            buffer = buffer.replace(/<think>[\s\S]*?<\/think>/g, '');
+
+            // 检查是否有未闭合的<think>标签
+            const thinkStartIndex = buffer.lastIndexOf('<think>');
+            const thinkEndIndex = buffer.lastIndexOf('</think>');
+
+            // 如果有未闭合的<think>标签，暂时保留buffer不发送
+            if (thinkStartIndex > thinkEndIndex) {
+              insideThinkTag = true;
+              continue; // 等待更多内容来闭合标签
+            }
+
+            // 如果之前在think标签内，现在标签闭合了，移除think内容
+            if (insideThinkTag && thinkEndIndex > thinkStartIndex) {
+              buffer = buffer.replace(/<think>[\s\S]*?<\/think>/g, '');
+              insideThinkTag = false;
+            }
+
+            // 发送清理后的内容
+            if (buffer.length > 0 && !insideThinkTag) {
+              fullContent += buffer;
+              const contentChunk = {
+                type: 'content',
+                data: buffer,
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentChunk)}\n\n`));
+              buffer = ''; // 清空buffer
+            }
+          }
+
+          // 处理剩余buffer（如果有）
+          if (buffer.length > 0) {
+            // 最后一次移除可能残留的think标签
+            buffer = buffer.replace(/<think>[\s\S]*?<\/think>/g, '');
+            buffer = buffer.replace(/<think>[\s\S]*$/g, ''); // 移除未闭合的think开始标签
+
+            if (buffer.length > 0) {
+              fullContent += buffer;
+              const contentChunk = {
+                type: 'content',
+                data: buffer,
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentChunk)}\n\n`));
+            }
           }
 
           // 检查内容是否完整（简单启发式检查：是否包含"财务预测"章节）

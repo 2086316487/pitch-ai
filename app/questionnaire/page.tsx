@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, Download, ArrowLeft, Loader2, CheckCircle2, Save, Sparkles, MessageSquare } from 'lucide-react';
+import { ClipboardList, Download, ArrowLeft, Loader2, CheckCircle2, Save, Sparkles, MessageSquare, Send } from 'lucide-react';
 import { saveQuestionnaire } from '@/lib/utils/storage';
 
 interface Question {
@@ -21,6 +21,13 @@ interface QuestionnaireData {
   createdAt: string;
 }
 
+// 用户答案类型
+interface Answer {
+  questionId: number;
+  type: 'choice' | 'multiple' | 'scale' | 'text';
+  value: string | string[] | number; // choice: string, multiple: string[], scale: number, text: string
+}
+
 export default function QuestionnairePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,6 +35,10 @@ export default function QuestionnairePage() {
   const [questionnaireData, setQuestionnaireData] = useState<QuestionnaireData | null>(null);
   const [error, setError] = useState('');
   const hasLoadedFromHistory = useRef(false); // 追踪是否已从历史记录加载
+
+  // 新增：用户答案状态
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const generateQuestionnaire = async () => {
     // 如果已经从历史记录加载过，不要重复生成
@@ -261,6 +272,134 @@ export default function QuestionnairePage() {
     }
   };
 
+  // 新增：答案处理函数
+  const handleChoiceAnswer = (questionId: number, option: string) => {
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === questionId);
+      if (existing) {
+        return prev.map(a =>
+          a.questionId === questionId
+            ? { ...a, value: option }
+            : a
+        );
+      }
+      return [...prev, { questionId, type: 'choice', value: option }];
+    });
+  };
+
+  const handleMultipleAnswer = (questionId: number, option: string) => {
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === questionId);
+      if (existing) {
+        const currentValues = existing.value as string[];
+        const newValues = currentValues.includes(option)
+          ? currentValues.filter(v => v !== option)
+          : [...currentValues, option];
+        return prev.map(a =>
+          a.questionId === questionId
+            ? { ...a, value: newValues }
+            : a
+        );
+      }
+      return [...prev, { questionId, type: 'multiple', value: [option] }];
+    });
+  };
+
+  const handleScaleAnswer = (questionId: number, score: number) => {
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === questionId);
+      if (existing) {
+        return prev.map(a =>
+          a.questionId === questionId
+            ? { ...a, value: score }
+            : a
+        );
+      }
+      return [...prev, { questionId, type: 'scale', value: score }];
+    });
+  };
+
+  const handleTextAnswer = (questionId: number, text: string) => {
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === questionId);
+      if (existing) {
+        return prev.map(a =>
+          a.questionId === questionId
+            ? { ...a, value: text }
+            : a
+        );
+      }
+      return [...prev, { questionId, type: 'text', value: text }];
+    });
+  };
+
+  // 检查选项是否被选中
+  const isOptionSelected = (questionId: number, option: string): boolean => {
+    const answer = answers.find(a => a.questionId === questionId);
+    if (!answer) return false;
+    if (Array.isArray(answer.value)) {
+      return answer.value.includes(option);
+    }
+    return answer.value === option;
+  };
+
+  // 检查分数是否被选中
+  const isScoreSelected = (questionId: number, score: number): boolean => {
+    const answer = answers.find(a => a.questionId === questionId);
+    return answer?.value === score;
+  };
+
+  // 获取文本答案
+  const getTextAnswer = (questionId: number): string => {
+    const answer = answers.find(a => a.questionId === questionId);
+    return (answer?.value as string) || '';
+  };
+
+  // 提交问卷
+  const handleSubmit = () => {
+    if (!questionnaireData) return;
+
+    // 检查是否所有必答题都已回答
+    const unanswered = questionnaireData.questions.filter(
+      q => !answers.find(a => a.questionId === q.id)
+    );
+
+    if (unanswered.length > 0) {
+      alert(`还有 ${unanswered.length} 道题目未回答，请完成后再提交`);
+      return;
+    }
+
+    // 标记为已提交
+    setIsSubmitted(true);
+
+    // 显示成功提示
+    const successToast = document.createElement('div');
+    successToast.innerHTML = `
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <div>
+          <div class="font-bold">问卷提交成功！</div>
+          <div class="text-sm opacity-90">共回答 ${answers.length} 道题目</div>
+        </div>
+      </div>
+    `;
+    successToast.className = 'fixed top-4 right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl z-50 backdrop-blur-xl border border-white/20';
+    document.body.appendChild(successToast);
+    setTimeout(() => {
+      if (document.body.contains(successToast)) {
+        document.body.removeChild(successToast);
+      }
+    }, 3000);
+  };
+
+  // 计算完成进度
+  const getProgress = (): number => {
+    if (!questionnaireData) return 0;
+    return Math.round((answers.length / questionnaireData.questions.length) * 100);
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Animated Background Elements */}
@@ -379,7 +518,23 @@ export default function QuestionnairePage() {
                       <span className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg backdrop-blur-sm">
                         📝 共 {questionnaireData.questions.length} 道题目
                       </span>
+                      <span className="flex items-center gap-2 px-3 py-1.5 bg-green-500/30 rounded-lg backdrop-blur-sm border border-green-500/50">
+                        ✅ 已完成 {getProgress()}%
+                      </span>
                     </div>
+                  </div>
+                </div>
+                {/* Progress Bar */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2 text-sm">
+                    <span className="text-white/70">填写进度</span>
+                    <span className="text-green-400 font-bold">{answers.length} / {questionnaireData.questions.length}</span>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-300"
+                      style={{ width: `${getProgress()}%` }}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -450,36 +605,70 @@ export default function QuestionnairePage() {
                                 {/* Options */}
                                 {(question.type === 'choice' || question.type === 'multiple') && question.options && (
                                   <div className="ml-14 space-y-2.5">
-                                    {question.options.map((option, optIdx) => (
-                                      <div
-                                        key={optIdx}
-                                        className="group/opt flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-green-400/50 hover:bg-green-500/10 transition-all cursor-pointer"
-                                      >
-                                        <span className="flex-shrink-0 w-8 h-8 bg-white/10 group-hover/opt:bg-green-500 rounded-full flex items-center justify-center text-sm font-bold text-white/70 group-hover/opt:text-white transition-colors shadow-md">
-                                          {String.fromCharCode(65 + optIdx)}
-                                        </span>
-                                        <span className="text-white/80 group-hover/opt:text-white transition-colors">{option}</span>
-                                      </div>
-                                    ))}
+                                    {question.options.map((option, optIdx) => {
+                                      const isSelected = isOptionSelected(question.id, option);
+                                      return (
+                                        <div
+                                          key={optIdx}
+                                          onClick={() => {
+                                            if (question.type === 'choice') {
+                                              handleChoiceAnswer(question.id, option);
+                                            } else {
+                                              handleMultipleAnswer(question.id, option);
+                                            }
+                                          }}
+                                          className={`group/opt flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                                            isSelected
+                                              ? 'bg-green-500/20 border-green-400 shadow-lg shadow-green-500/20'
+                                              : 'bg-white/5 border-white/10 hover:border-green-400/50 hover:bg-green-500/10'
+                                          }`}
+                                        >
+                                          <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-md transition-all ${
+                                            isSelected
+                                              ? 'bg-green-500 text-white scale-110'
+                                              : 'bg-white/10 text-white/70 group-hover/opt:bg-green-500 group-hover/opt:text-white'
+                                          }`}>
+                                            {isSelected ? '✓' : String.fromCharCode(65 + optIdx)}
+                                          </span>
+                                          <span className={`transition-colors ${
+                                            isSelected ? 'text-white font-medium' : 'text-white/80 group-hover/opt:text-white'
+                                          }`}>{option}</span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
 
                                 {/* Scale */}
                                 {question.type === 'scale' && (
                                   <div className="ml-14 flex gap-2">
-                                    {[1, 2, 3, 4, 5].map((num) => (
-                                      <div
-                                        key={num}
-                                        className="flex-1 p-4 bg-white/5 rounded-xl border border-white/10 text-center hover:border-green-400/50 hover:bg-green-500/10 transition-all cursor-pointer group/scale"
-                                      >
-                                        <div className="text-2xl font-bold text-white mb-1 group-hover/scale:scale-110 transition-transform">{num}</div>
-                                        <div className="text-xs text-white/60 group-hover/scale:text-white/80 transition-colors">
-                                          {num === 1 && '非常不同意'}
-                                          {num === 3 && '中立'}
-                                          {num === 5 && '非常同意'}
+                                    {[1, 2, 3, 4, 5].map((num) => {
+                                      const isSelected = isScoreSelected(question.id, num);
+                                      return (
+                                        <div
+                                          key={num}
+                                          onClick={() => handleScaleAnswer(question.id, num)}
+                                          className={`flex-1 p-4 rounded-xl border text-center transition-all cursor-pointer group/scale ${
+                                            isSelected
+                                              ? 'bg-green-500/20 border-green-400 shadow-lg shadow-green-500/20'
+                                              : 'bg-white/5 border-white/10 hover:border-green-400/50 hover:bg-green-500/10'
+                                          }`}
+                                        >
+                                          <div className={`text-2xl font-bold mb-1 transition-transform ${
+                                            isSelected
+                                              ? 'text-green-400 scale-125'
+                                              : 'text-white group-hover/scale:scale-110'
+                                          }`}>{num}</div>
+                                          <div className={`text-xs transition-colors ${
+                                            isSelected ? 'text-green-300' : 'text-white/60 group-hover/scale:text-white/80'
+                                          }`}>
+                                            {num === 1 && '非常不同意'}
+                                            {num === 3 && '中立'}
+                                            {num === 5 && '非常同意'}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
 
@@ -488,9 +677,10 @@ export default function QuestionnairePage() {
                                   <div className="ml-14">
                                     <textarea
                                       placeholder="请在此输入您的回答..."
+                                      value={getTextAnswer(question.id)}
+                                      onChange={(e) => handleTextAnswer(question.id, e.target.value)}
                                       className="w-full p-4 border border-white/10 bg-white/5 rounded-xl resize-none focus:outline-none focus:border-green-500/50 focus:bg-white/10 text-white placeholder-white/40 backdrop-blur-sm transition-all"
                                       rows={3}
-                                      disabled
                                     />
                                   </div>
                                 )}
@@ -513,15 +703,67 @@ export default function QuestionnairePage() {
               </div>
 
               {/* Footer */}
-              <div className="border-t border-white/10 p-8 text-center bg-black/20">
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="border-t border-white/10 p-8 bg-black/20">
+                {!isSubmitted ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="text-center mb-2">
+                      <p className="text-white/70 text-sm mb-1">
+                        已完成 {answers.length} / {questionnaireData.questions.length} 题
+                      </p>
+                      {answers.length < questionnaireData.questions.length && (
+                        <p className="text-orange-400 text-xs">
+                          还有 {questionnaireData.questions.length - answers.length} 道题未回答
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={answers.length === 0}
+                      className={`group relative overflow-hidden font-bold px-10 py-4 rounded-2xl transition-all duration-300 ${
+                        answers.length === 0
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105'
+                      }`}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="relative flex items-center gap-3">
+                        <Send className="w-5 h-5" />
+                        <span className="text-lg">提交问卷</span>
+                      </div>
+                    </button>
+                    <p className="text-white/40 text-xs">
+                      提交后可以查看填写结果
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="w-7 h-7 text-white" />
+                      </div>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">问卷提交成功！</h3>
+                    <p className="text-white/70 mb-6">感谢您的参与，您的反馈对我们非常重要</p>
+                    <div className="inline-flex flex-col gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-green-400">
+                        <span>✓</span>
+                        <span>共回答 {answers.length} 道题目</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-blue-400">
+                        <span>⏱</span>
+                        <span>完成率 {getProgress()}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-white/10">
                   <Sparkles className="w-5 h-5 text-green-400" />
                   <span className="text-lg font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
                     PitchAI
                   </span>
                 </div>
-                <p className="text-white/50 text-sm">本问卷由 AI 自动生成，仅供市场调研参考</p>
-                <p className="text-white/40 text-xs mt-1">请根据实际情况调整问题内容</p>
+                <p className="text-white/50 text-sm text-center mt-2">本问卷由 AI 自动生成，仅供市场调研参考</p>
+                <p className="text-white/40 text-xs mt-1 text-center">请根据实际情况调整问题内容</p>
               </div>
             </div>
           </div>

@@ -71,32 +71,36 @@ export async function extractBusinessElements(idea: string) {
     // 使用重试机制调用 API
     const completion = await withRetry(async () => {
       return await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+        model: process.env.OPENAI_MODEL || 'MiniMax-M2',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.5, // 降低温度使输出更稳定
-        max_tokens: 3000, // 增加到3000确保完整响应
+        temperature: 1.0, // MiniMax 推荐值
+        max_tokens: 3000,
+        // MiniMax 推荐参数：将思考内容分离到 reasoning_details 字段
+        extra_body: { reasoning_split: true } as any,
       });
     }, 3, 3000);
 
     const choice = completion.choices[0];
-
-    // Gemini 模型可能使用 reasoning_content 字段
-    let content = choice?.message?.content || '';
-
-    // 如果 content 为空，尝试使用 reasoning_content
-    if (!content && (choice?.message as any)?.reasoning_content) {
-      content = (choice.message as any).reasoning_content;
+    if (!choice) {
+      throw new Error('API 返回了空的 choices 数组');
     }
 
+    let content = choice.message?.content || '';
+
+    // MiniMax-M2 使用 reasoning_split 时，思考内容在 reasoning_details 中
+    // 实际 JSON 数据在 content 字段中
     if (!content) {
       throw new Error('AI 返回了空内容');
     }
 
     // 增强的 JSON 提取逻辑
     console.log('AI 原始响应:', content);
+
+    // 先移除 MiniMax-M2 的 <think> 标签内容
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
     let jsonString = '';
     let jsonMatch = null;
@@ -191,14 +195,21 @@ ${JSON.stringify(elements, null, 2)}
   try {
     const completion = await withRetry(async () => {
       return await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+        model: process.env.OPENAI_MODEL || 'MiniMax-M2',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
+        temperature: 1.0, // MiniMax 推荐值
         max_tokens: 2000,
+        // MiniMax 推荐参数：将思考内容分离
+        extra_body: { reasoning_split: true } as any,
       });
     }, 3, 3000);
 
-    return completion.choices[0]?.message?.content || '';
+    const choice = completion.choices[0];
+    if (!choice) {
+      throw new Error('API 返回了空的 choices 数组');
+    }
+
+    return choice.message?.content || '';
   } catch (error: any) {
     console.error('Error generating business plan:', error);
 
@@ -232,12 +243,14 @@ ${JSON.stringify(elements, null, 2)}
 
   try {
     const stream = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+      model: process.env.OPENAI_MODEL || 'MiniMax-M2',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      temperature: 1.0, // MiniMax 推荐值
       max_tokens: 12000, // 增加到12000以确保能完成全部内容
       stream: true,
       timeout: 180000, // 3分钟超时
+      // MiniMax 推荐参数：将思考内容分离
+      extra_body: { reasoning_split: true } as any,
     });
 
     let finishReason: string | null = null;
@@ -286,9 +299,12 @@ ${JSON.stringify(elements, null, 2)}
 export async function* streamGenerate(prompt: string) {
   try {
     const stream = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: process.env.OPENAI_MODEL || 'MiniMax-M2',
       messages: [{ role: 'user', content: prompt }],
+      temperature: 1.0, // MiniMax 推荐值
       stream: true,
+      // MiniMax 推荐参数：将思考内容分离
+      extra_body: { reasoning_split: true } as any,
     });
 
     for await (const chunk of stream) {
@@ -349,25 +365,24 @@ ${JSON.stringify(elements, null, 2)}
   try {
     const completion = await withRetry(async () => {
       return await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+        model: process.env.OPENAI_MODEL || 'MiniMax-M2',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
+        temperature: 1.0, // MiniMax 推荐值
         max_tokens: 4000,
+        // MiniMax 推荐参数：将思考内容分离
+        extra_body: { reasoning_split: true } as any,
       });
     }, 3, 3000);
 
     const choice = completion.choices[0];
-
-    // Gemini 模型可能使用 reasoning_content 字段
-    let content = choice?.message?.content || '';
-
-    // 如果 content 为空，尝试使用 reasoning_content
-    if (!content && (choice?.message as any)?.reasoning_content) {
-      content = (choice.message as any).reasoning_content;
+    if (!choice) {
+      throw new Error('API 返回了空的 choices 数组');
     }
+
+    let content = choice.message?.content || '';
 
     if (!content) {
       throw new Error('AI 返回了空内容');
@@ -375,6 +390,9 @@ ${JSON.stringify(elements, null, 2)}
 
     console.log('AI 返回的原始内容长度:', content.length);
     console.log('AI 返回的原始内容前 500 字符:', content.substring(0, 500));
+
+    // 先移除 MiniMax-M2 的 <think> 标签内容
+    content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
     // 清理内容：移除 markdown 代码块标记
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '');
