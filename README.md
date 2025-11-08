@@ -1,36 +1,281 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 PitchAI - 智能商业计划书生成器
 
-## Getting Started
+> AI+Web 创新挑战赛参赛作品 | 3分钟生成专业商业计划书
 
-First, run the development server:
+<div align="center">
 
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38B2AC?style=flat-square&logo=tailwind-css)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+
+</div>
+
+---
+
+## 📝 项目简介
+
+**PitchAI** 是一款基于大语言模型的创业辅助工具，帮助创业者快速将一句话的创业想法转化为完整的商业计划书、市场分析和验证问卷。
+
+### ✨ 核心功能
+
+- 🎯 **想法结构化**：AI 自动提取痛点、解决方案、目标用户等商业要素
+- 📊 **竞品分析**：基于50+竞品数据库自动生成市场分析和竞争策略
+- 📄 **多格式导出**：支持 PPT（4种模板）、PDF、TXT 多种格式的专业文档
+- 📋 **验证问卷**：自动生成市场验证问卷，快速获取用户反馈
+- 💾 **数据持久化**：本地保存历史计划，随时查看和编辑（即时加载）
+- 🔄 **实时生成**：流式输出技术，实时查看内容生成过程
+- 🎨 **PPT模板选择**：4种专业模板（商务/创意/极简/活力）
+- ⚡ **Loading动画**：专业的导出进度显示（0-100%）
+
+---
+
+## 🛠️ 技术栈
+
+### 前端
+- **框架**：Next.js 14 (App Router)
+- **语言**：TypeScript
+- **样式**：Tailwind CSS
+- **图标**：Lucide React
+- **图表**：Recharts
+
+### 后端
+- **API**：Next.js API Routes
+- **AI 服务**：OpenAI 兼容 API
+- **状态管理**：Zustand
+- **表单**：React Hook Form + Zod
+
+### 文档生成
+- **PPT**：pptxgenjs
+- **PDF**：jsPDF
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Node.js 18+
+- npm 或 yarn
+- OpenAI 兼容的 API Key
+
+### 安装步骤
+
+1. **克隆项目**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/pitch-ai.git
+cd pitch-ai
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **安装依赖**
+```bash
+npm install
+# 或
+yarn install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **配置环境变量**
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+编辑 `.env.local`，填入你的 API 配置：
+```env
+API_BASE_URL=https://your-api-endpoint.com/v1
+API_KEY=sk-your-api-key-here
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-## Learn More
+4. **启动开发服务器**
+```bash
+npm run dev
+# 或
+yarn dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. **打开浏览器**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+访问 [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📁 项目结构
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+pitch-ai/
+├── app/                    # Next.js 14 App Router
+│   ├── api/               # API 路由
+│   │   ├── generate-plan/        # 商业要素提取
+│   │   ├── generate-full-plan/   # 完整商业计划生成
+│   │   ├── generate-ppt/         # PPT 生成
+│   │   ├── generate-questionnaire/ # 问卷生成
+│   │   └── competitor-analysis/  # 竞品分析 (NEW)
+│   ├── plan/              # 商业计划展示页
+│   ├── questionnaire/     # 问卷展示页
+│   ├── history/           # 历史记录页 (NEW)
+│   ├── layout.tsx         # 根布局
+│   └── page.tsx           # 首页
+├── components/            # React 组件
+│   ├── ui/               # UI 基础组件
+│   └── features/         # 功能组件
+├── lib/                   # 工具函数和 API 调用
+│   ├── api/              # API 相关
+│   │   └── openai.ts     # OpenAI 调用封装
+│   ├── data/             # 数据文件 (NEW)
+│   │   └── competitors.ts # 竞品数据库 (50+企业)
+│   └── utils/            # 工具函数
+│       ├── pdfExport.ts         # PDF 导出
+│       ├── pptExport.ts         # PPT 导出
+│       ├── storage.ts           # 本地存储 (NEW)
+│       └── competitorAnalysis.ts # 竞品分析 (NEW)
+├── types/                 # TypeScript 类型定义
+│   └── index.ts
+├── public/                # 静态资源
+├── .env.example          # 环境变量示例
+├── .env.local            # 本地环境变量（不提交）
+├── package.json          # 项目依赖
+├── tsconfig.json         # TypeScript 配置
+├── tailwind.config.ts    # Tailwind 配置
+└── 开发进度.md            # 开发进度跟踪
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 🎨 功能演示
+
+### 1. 输入创业想法
+在首页输入一句话描述你的创业想法：
+> 开发一款 AI 驱动的老年人健康管理 App，帮助老年人记录健康数据、提供用药提醒和远程问诊服务
+
+### 2. AI 分析
+点击"开始生成商业计划书"，AI 会自动分析并提取：
+- 🎯 痛点问题
+- 💡 解决方案
+- 👥 目标用户
+- ⭐ 价值主张
+- 💰 商业模式
+- 📊 市场规模
+- 🔍 潜在竞争对手
+
+### 3. 导出文档
+- 📄 生成完整商业计划书
+- 📊 生成 Pitch PPT
+- 📋 生成市场验证问卷
+
+---
+
+## 🔧 开发指南
+
+### 运行测试
+```bash
+npm run test
+```
+
+### 代码检查
+```bash
+npm run lint
+```
+
+### 构建生产版本
+```bash
+npm run build
+```
+
+### 启动生产服务器
+```bash
+npm run start
+```
+
+---
+
+## 🌐 部署
+
+### Vercel 部署（推荐）
+
+1. 推送代码到 GitHub
+2. 访问 [Vercel](https://vercel.com)
+3. 导入项目
+4. 配置环境变量
+5. 一键部署
+
+### 其他平台
+
+项目支持部署到任何支持 Next.js 的平台：
+- Netlify
+- Railway
+- Render
+- 腾讯云 Webify
+- 阿里云函数计算
+
+---
+
+## 📊 开发进度
+
+查看 [开发进度.md](./开发进度.md) 了解详细的开发计划和进度。
+
+### 当前状态
+- ✅ 项目搭建完成
+- ✅ 基础 UI 实现
+- ✅ AI 接口集成（流式输出）
+- ✅ 完整商业计划书生成
+- ✅ PPT/PDF/TXT 文档导出
+- ✅ 市场验证问卷生成
+- ✅ 竞品分析功能（50+竞品数据库）
+- ✅ 数据持久化（localStorage）
+- ✅ 历史记录管理
+- 🚧 财务模型生成开发中
+- ⏳ 图表可视化待开发
+- ⏳ 用户认证待开发
+
+---
+
+## 🤝 贡献指南
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+---
+
+## 📄 License
+
+本项目采用 MIT 许可证
+
+---
+
+## 👥 团队
+
+- **项目负责人**：[Your Name]
+- **技术栈**：Next.js 14 + TypeScript + Tailwind CSS
+- **AI 服务**：OpenAI 兼容 API
+
+---
+
+## 📞 联系方式
+
+- **项目仓库**：[GitHub](https://github.com/your-username/pitch-ai)
+- **在线演示**：即将上线
+- **问题反馈**：[Issues](https://github.com/your-username/pitch-ai/issues)
+
+---
+
+## 🙏 致谢
+
+- [Next.js](https://nextjs.org/) - React 框架
+- [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
+- [OpenAI](https://openai.com/) - AI 模型
+- [Lucide](https://lucide.dev/) - 图标库
+
+---
+
+<div align="center">
+
+**Made with ❤️ for AI+Web 创新挑战赛**
+
+⭐️ 如果这个项目对你有帮助，请给它一个 Star！
+
+</div>
