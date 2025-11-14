@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FileText, Download, ArrowLeft, Loader2, FileSpreadsheet, FileDown, Save, Target, TrendingUp, AlertCircle, DollarSign, Sparkles, Edit3, X } from 'lucide-react';
+import { FileText, Download, ArrowLeft, Loader2, FileSpreadsheet, FileDown, Save, Target, TrendingUp, AlertCircle, DollarSign, Sparkles, Edit3, X, ClipboardList } from 'lucide-react';
 import { exportBusinessPlanToPDF, exportBusinessPlanToText } from '@/lib/utils/pdfExport';
 import { saveBusinessPlan } from '@/lib/utils/storage';
 import type { FinancialModel } from '@/types';
@@ -268,6 +268,12 @@ export default function BusinessPlanPage() {
                     ...metadata,
                     content: jsonData.data.fullContent || accumulatedContent,
                   });
+
+                  // 自动触发财务模型生成
+                  setTimeout(() => {
+                    console.log('🚀 自动生成财务模型...');
+                    handleGenerateFinancialModel();
+                  }, 1000); // 1秒后生成,让用户先看到计划书
                 }
 
                 if (jsonData.data.wasTruncated) {
@@ -506,6 +512,34 @@ export default function BusinessPlanPage() {
     }
   };
 
+  const handleGenerateQuestionnaire = () => {
+    if (!planData?.elements) {
+      alert('缺少商业要素数据');
+      return;
+    }
+
+    // 保存完整数据到sessionStorage，以便返回时可以即时加载
+    sessionStorage.setItem('businessElements', JSON.stringify(planData.elements));
+    sessionStorage.setItem('businessCreatedAt', planData.createdAt || new Date().toISOString());
+    sessionStorage.setItem('businessTitle', planData.title || '商业计划书');
+
+    // 保存完整计划书内容，避免返回时重新生成
+    if (planData.content) {
+      sessionStorage.setItem('loadedPlanContent', planData.content);
+    }
+
+    // 保存财务模型和竞品数据
+    if (financialModel) {
+      sessionStorage.setItem('loadedFinancialModel', JSON.stringify(financialModel));
+    }
+    if (competitorData) {
+      sessionStorage.setItem('loadedCompetitorData', JSON.stringify(competitorData));
+    }
+
+    // 跳转到问卷页面
+    router.push('/questionnaire');
+  };
+
   const loadCompetitorAnalysis = async () => {
     if (!planData?.elements) {
       return;
@@ -720,6 +754,25 @@ export default function BusinessPlanPage() {
   };
 
   const handleSaveEdit = () => {
+    // 更新planData的内容
+    if (planData) {
+      setPlanData(prev => prev ? { ...prev, content: editedContent } : null);
+
+      // 自动保存到localStorage
+      try {
+        saveBusinessPlan({
+          title: planData.title || '商业计划书',
+          elements: planData.elements,
+          content: editedContent, // 使用编辑后的内容
+          financialModel: financialModel || undefined,
+          competitorData: competitorData || undefined,
+          createdAt: planData.createdAt,
+        });
+      } catch (error) {
+        console.error('自动保存失败:', error);
+      }
+    }
+
     setIsEditing(false);
     const successToast = document.createElement('div');
     successToast.innerHTML = '✅ 内容保存成功！';
@@ -810,6 +863,29 @@ export default function BusinessPlanPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planData]);
+
+  // 自动保存功能:内容变化30秒后自动保存
+  useEffect(() => {
+    if (!planData || isGenerating) return;
+
+    const timer = setTimeout(() => {
+      try {
+        saveBusinessPlan({
+          title: planData.title || '商业计划书',
+          elements: planData.elements,
+          content: planData.content,
+          financialModel: financialModel || undefined,
+          competitorData: competitorData || undefined,
+          createdAt: planData.createdAt,
+        });
+        console.log('💾 自动保存成功');
+      } catch (error) {
+        console.error('自动保存失败:', error);
+      }
+    }, 30000); // 30秒后保存
+
+    return () => clearTimeout(timer);
+  }, [planData, financialModel, competitorData, isGenerating]);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -922,10 +998,45 @@ export default function BusinessPlanPage() {
                 <FileDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform" />
                 <span className="hidden lg:inline font-medium">TXT</span>
               </button>
+              <button
+                onClick={handleGenerateQuestionnaire}
+                className="group flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all text-xs sm:text-sm backdrop-blur-sm border border-white/20 hover:scale-105"
+                title="生成市场验证问卷"
+              >
+                <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform" />
+                <span className="hidden md:inline font-medium">问卷</span>
+              </button>
             </div>
           )}
         </div>
       </header>
+
+      {/* 步骤指示器 */}
+      <div className="relative border-b border-white/5 bg-black/10 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center text-green-400">✓</span>
+              <span className="hidden sm:inline">输入想法</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center text-green-400">✓</span>
+              <span className="hidden sm:inline">商业要素</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <span className="w-6 h-6 rounded-full bg-blue-500 border-2 border-blue-400 flex items-center justify-center text-white shadow-lg">3</span>
+              <span className="hidden sm:inline">完整计划书</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-white/5 border border-white/20 flex items-center justify-center">4</span>
+              <span className="hidden sm:inline">问卷/导出</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="relative max-w-7xl mx-auto px-4 py-6 sm:py-8">

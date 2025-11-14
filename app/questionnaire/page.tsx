@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ClipboardList, Download, ArrowLeft, Loader2, CheckCircle2, Save, Sparkles, MessageSquare, Send } from 'lucide-react';
+import { ClipboardList, Download, ArrowLeft, Loader2, CheckCircle2, Save, Sparkles, MessageSquare, Send, FileText } from 'lucide-react';
 import { saveQuestionnaire } from '@/lib/utils/storage';
 
 interface Question {
@@ -412,13 +412,30 @@ export default function QuestionnairePage() {
       {/* Header */}
       <header className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/')}
-            className="group flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-base font-medium">返回首页</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/')}
+              className="group flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-base font-medium hidden sm:inline">返回首页</span>
+            </button>
+            <button
+              onClick={() => {
+                // 保存问卷数据到sessionStorage以便可能的后续操作
+                if (questionnaireData) {
+                  sessionStorage.setItem('businessElements', JSON.stringify(questionnaireData.elements));
+                  sessionStorage.setItem('businessCreatedAt', questionnaireData.createdAt);
+                  sessionStorage.setItem('businessTitle', '商业计划书');
+                }
+                router.push('/plan');
+              }}
+              className="group flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            >
+              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="text-base font-medium hidden sm:inline">查看计划书</span>
+            </button>
+          </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -457,6 +474,33 @@ export default function QuestionnairePage() {
           )}
         </div>
       </header>
+
+      {/* 步骤指示器 */}
+      <div className="relative border-b border-white/5 bg-black/10 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center text-green-400">✓</span>
+              <span className="hidden sm:inline">输入想法</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center text-green-400">✓</span>
+              <span className="hidden sm:inline">商业要素</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white/40">
+              <span className="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center text-green-400">✓</span>
+              <span className="hidden sm:inline">完整计划书</span>
+            </div>
+            <div className="w-6 sm:w-12 h-px bg-white/20"></div>
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <span className="w-6 h-6 rounded-full bg-emerald-500 border-2 border-emerald-400 flex items-center justify-center text-white shadow-lg">4</span>
+              <span className="hidden sm:inline">问卷验证</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="relative max-w-6xl mx-auto px-4 py-8 sm:py-12">
