@@ -54,14 +54,26 @@ async function withRetry<T>(
  * 从用户输入提取商业要素
  */
 export async function extractBusinessElements(idea: string) {
-  // 优化系统提示，确保JSON格式
-  const systemPrompt = `你是商业顾问。仅返回标准JSON格式，不要任何解释或额外文本。JSON必须使用双引号。`;
+  // 针对Kimi thinking模型优化的系统提示
+  const systemPrompt = `你是专业的商业顾问。请完成思考后，输出最终的JSON格式结果。
 
-  // 优化用户提示，明确格式要求
+重要：
+1. 思考后必须输出JSON结果
+2. JSON使用双引号
+3. 不要包含额外文本
+4. 格式：{"problem":"...","solution":"...","targetUsers":"...","valueProposition":"...","businessModel":"...","marketSize":"...","competitors":["...","...","..."]}`;
+
+  // 优化用户提示
   const userPrompt = `分析创业想法：${idea}
 
-请返回严格JSON格式，包含以下字段：
-{"problem":"解决什么问题","solution":"提供什么解决方案","targetUsers":"目标用户是谁","valueProposition":"核心价值主张","businessModel":"商业模式","marketSize":"市场规模估算","competitors":["竞品1","竞品2","竞品3"]}
+请在思考后输出JSON格式结果，包含以下字段：
+- problem: 解决什么问题
+- solution: 提供什么解决方案
+- targetUsers: 目标用户是谁
+- valueProposition: 核心价值主张
+- businessModel: 商业模式
+- marketSize: 市场规模估算
+- competitors: 3个主要竞品（数组）
 
 只返回JSON，不要其他内容。`;
 
@@ -76,10 +88,9 @@ export async function extractBusinessElements(idea: string) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 1.0, // MiniMax 推荐值
-        max_tokens: 3000,
-        // MiniMax 推荐参数：将思考内容分离到 reasoning_details 字段
-        extra_body: { reasoning_split: true } as any,
+        temperature: 0.7, // Kimi推荐值
+        max_tokens: 8000, // 增加到8000以容纳thinking过程和最终结果
+        // 移除extra_body，Kimi不需要这个参数
       });
     }, 3, 3000);
 
@@ -88,7 +99,15 @@ export async function extractBusinessElements(idea: string) {
       throw new Error('API 返回了空的 choices 数组');
     }
 
+    // 支持Kimi thinking模型的reasoning_content字段
     let content = choice.message?.content || '';
+    const reasoningContent = (choice.message as any)?.reasoning_content || '';
+
+    // 如果content为空但reasoning_content有内容，使用reasoning_content
+    if (!content && reasoningContent) {
+      console.log('⚠️ 检测到Kimi thinking模型，从reasoning_content提取内容');
+      content = reasoningContent;
+    }
 
     // MiniMax-M2 使用 reasoning_split 时，思考内容在 reasoning_details 中
     // 实际 JSON 数据在 content 字段中
