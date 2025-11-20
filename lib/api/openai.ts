@@ -4,8 +4,8 @@ import OpenAI from 'openai';
 export const openai = new OpenAI({
   baseURL: process.env.API_BASE_URL,
   apiKey: process.env.API_KEY || 'default-key',
-  timeout: 180000, // 恢复180秒超时以确保AI能完成完整响应
-  maxRetries: 3, // 启用自动重试
+  timeout: 60000, // 60秒超时（优化后足够）
+  maxRetries: 2, // 2次重试足够
 });
 
 /**
@@ -54,28 +54,18 @@ async function withRetry<T>(
  * 从用户输入提取商业要素
  */
 export async function extractBusinessElements(idea: string) {
-  // 针对Kimi thinking模型优化的系统提示
-  const systemPrompt = `你是专业的商业顾问。请完成思考后，输出最终的JSON格式结果。
+  // 精简系统提示
+  const systemPrompt = `你是商业顾问。直接输出JSON结果。
 
-重要：
-1. 思考后必须输出JSON结果
-2. JSON使用双引号
-3. 不要包含额外文本
-4. 格式：{"problem":"...","solution":"...","targetUsers":"...","valueProposition":"...","businessModel":"...","marketSize":"...","competitors":["...","...","..."]}`;
+要求：
+1. 每个字段精简到50-80字
+2. 必须输出完整JSON
+3. 格式：{"problem":"...","solution":"...","targetUsers":"...","valueProposition":"...","businessModel":"...","marketSize":"...","competitors":["...","...","..."]}`;
 
-  // 优化用户提示
+  // 简化用户提示
   const userPrompt = `分析创业想法：${idea}
 
-请在思考后输出JSON格式结果，包含以下字段：
-- problem: 解决什么问题
-- solution: 提供什么解决方案
-- targetUsers: 目标用户是谁
-- valueProposition: 核心价值主张
-- businessModel: 商业模式
-- marketSize: 市场规模估算
-- competitors: 3个主要竞品（数组）
-
-只返回JSON，不要其他内容。`;
+输出完整JSON（每个字段50-80字）：problem、solution、targetUsers、valueProposition、businessModel、marketSize、competitors(3个竞品)。`;
 
 
 
@@ -88,9 +78,9 @@ export async function extractBusinessElements(idea: string) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7, // Kimi推荐值
-        max_tokens: 8000, // 增加到8000以容纳thinking过程和最终结果
-        // 移除extra_body，Kimi不需要这个参数
+        temperature: 0.7,
+        max_tokens: 2500, // 增加到2500确保JSON完整输出
+        top_p: 0.9, // 添加 top_p 提高输出质量
       });
     }, 3, 3000);
 
@@ -138,7 +128,18 @@ export async function extractBusinessElements(idea: string) {
       }
     }
 
-    // 策略3：如果内容被截断，尝试提取可能的JSON片段
+    // 策略3：尝试修复不完整的 JSON
+    if (jsonString && !jsonString.endsWith('}')) {
+      console.warn('⚠️ 检测到JSON未闭合，尝试修复...');
+      // 尝试闭合未完成的字符串和对象
+      jsonString = jsonString.replace(/,\s*$/, ''); // 移除末尾逗号
+      if (!jsonString.includes('"competitors"')) {
+        jsonString += ',"competitors":["待分析","待分析","待分析"]';
+      }
+      jsonString += '}';
+    }
+
+    // 策略4：如果内容被严重截断，尝试提取可能的JSON片段
     if (!jsonString || jsonString.length < 50) {
       console.warn('⚠️ 检测到响应可能被截断，尝试从部分内容构建JSON');
 
@@ -216,10 +217,8 @@ ${JSON.stringify(elements, null, 2)}
       return await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || 'MiniMax-M2',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 1.0, // MiniMax 推荐值
+        temperature: 0.8,
         max_tokens: 2000,
-        // MiniMax 推荐参数：将思考内容分离
-        extra_body: { reasoning_split: true } as any,
       });
     }, 3, 3000);
 
@@ -264,12 +263,10 @@ ${JSON.stringify(elements, null, 2)}
     const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'MiniMax-M2',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 1.0, // MiniMax 推荐值
-      max_tokens: 12000, // 增加到12000以确保能完成全部内容
+      temperature: 0.8,
+      max_tokens: 6000, // 优化：降低到6000以加快响应
       stream: true,
-      timeout: 180000, // 3分钟超时
-      // MiniMax 推荐参数：将思考内容分离
-      extra_body: { reasoning_split: true } as any,
+      timeout: 120000, // 2分钟超时
     });
 
     let finishReason: string | null = null;
@@ -320,10 +317,8 @@ export async function* streamGenerate(prompt: string) {
     const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'MiniMax-M2',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 1.0, // MiniMax 推荐值
+      temperature: 0.8,
       stream: true,
-      // MiniMax 推荐参数：将思考内容分离
-      extra_body: { reasoning_split: true } as any,
     });
 
     for await (const chunk of stream) {
@@ -389,10 +384,8 @@ ${JSON.stringify(elements, null, 2)}
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 1.0, // MiniMax 推荐值
-        max_tokens: 4000,
-        // MiniMax 推荐参数：将思考内容分离
-        extra_body: { reasoning_split: true } as any,
+        temperature: 0.8,
+        max_tokens: 3000, // 优化：问卷生成不需要太多token
       });
     }, 3, 3000);
 
