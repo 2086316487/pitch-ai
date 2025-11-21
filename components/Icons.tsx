@@ -14,7 +14,9 @@ import {
   Share2,
   Loader2,
   Github,
-  Mail
+  Mail,
+  Trash2,
+  Eye
 } from 'lucide-react';
 
 export const Icons = {
@@ -33,5 +35,7 @@ export const Icons = {
   Share2,
   Loader2,
   Github,
-  Mail
+  Mail,
+  Trash2,
+  Eye
 };

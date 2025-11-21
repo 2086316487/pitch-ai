@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { History, FileText, ClipboardList, Trash2, Eye, Calendar, ArrowLeft, Sparkles } from 'lucide-react';
+import { Icons } from '@/components/Icons';
 import { getAllSavedItems, deleteSavedItem, getStorageInfo, type SavedItem } from '@/lib/utils/storage';
 
 export default function HistoryPage() {
@@ -44,14 +44,12 @@ export default function HistoryPage() {
     // 将数据存入 sessionStorage，然后跳转
     sessionStorage.setItem('businessElements', JSON.stringify(item.elements));
     sessionStorage.setItem('businessCreatedAt', item.createdAt);
-    sessionStorage.setItem('businessTitle', item.title); // 保存标题
+    sessionStorage.setItem('businessTitle', item.title);
 
     if (item.type === 'business-plan') {
-      // 商业计划书：保存完整内容，从历史记录查看时直接使用，不重新生成
       if (item.content) {
         sessionStorage.setItem('loadedPlanContent', item.content);
       }
-      // 保存财务模型和竞品分析数据
       if (item.financialModel) {
         sessionStorage.setItem('loadedFinancialModel', JSON.stringify(item.financialModel));
       }
@@ -60,31 +58,10 @@ export default function HistoryPage() {
       }
       router.push('/plan');
     } else {
-      // 问卷：保存问题数组，从历史记录查看时直接使用，不重新生成
       if (item.questions) {
         sessionStorage.setItem('loadedQuestionnaireContent', JSON.stringify(item.questions));
       }
       router.push('/questionnaire');
-    }
-  };
-
-  const getTypeInfo = (type: string) => {
-    if (type === 'business-plan') {
-      return {
-        icon: <FileText className="w-5 h-5" />,
-        label: '商业计划书',
-        color: 'bg-gradient-to-r from-blue-500 to-purple-500',
-        textColor: 'text-blue-400',
-        borderColor: 'border-blue-500/30',
-      };
-    } else {
-      return {
-        icon: <ClipboardList className="w-5 h-5" />,
-        label: '市场问卷',
-        color: 'bg-gradient-to-r from-green-500 to-emerald-500',
-        textColor: 'text-green-400',
-        borderColor: 'border-green-500/30',
-      };
     }
   };
 
@@ -109,176 +86,114 @@ export default function HistoryPage() {
     }
   };
 
+  const getTypeTag = (item: SavedItem) => {
+    if (item.type === 'business-plan') {
+      if (item.financialModel) {
+        return { label: '财务模型', color: 'bg-amber-600' };
+      }
+      return { label: '商业计划书', color: 'bg-blue-600' };
+    }
+    return { label: '市场问卷', color: 'bg-emerald-500' };
+  };
+
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+    <div className="min-h-screen bg-[#0f0a1e] text-white p-6 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="max-w-5xl mx-auto mb-8 flex items-center justify-between">
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center text-slate-400 hover:text-white transition-colors group"
+        >
+          <Icons.ChevronLeft size={20} className="mr-1 group-hover:-translate-x-1 transition-transform" />
+          <span>返回首页</span>
+        </button>
+        <div className="flex items-center space-x-2">
+          <Icons.Clock size={24} className="text-purple-500" />
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
+            历史记录
+          </h1>
+        </div>
+        <div className="text-sm text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+          {storageInfo.itemCount} 项 · {storageInfo.estimatedSize}
+        </div>
       </div>
 
-      {/* Header */}
-      <header className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/')}
-            className="group flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-base font-medium">返回首页</span>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg blur opacity-75"></div>
-              <History className="relative w-6 h-6 text-white p-1" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              历史记录
-            </h1>
-          </div>
-
-          <div className="px-4 py-2 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-            <div className="text-sm text-white/80 font-medium">
-              {storageInfo.itemCount} 项 <span className="hidden sm:inline text-white/50">· {storageInfo.estimatedSize}</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="relative max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      {/* List Container */}
+      <div className="max-w-5xl mx-auto space-y-4">
         {savedItems.length === 0 ? (
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur opacity-20"></div>
-            <div className="relative bg-black/40 backdrop-blur-xl rounded-3xl p-12 sm:p-16 border border-white/10 text-center">
-              <div className="relative inline-block mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full blur-xl opacity-50"></div>
-                <History className="relative w-16 h-16 sm:w-20 sm:h-20 text-white/30" />
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-                暂无历史记录
-              </h2>
-              <p className="text-base sm:text-lg text-white/60 mb-8 max-w-md mx-auto">
-                您还没有保存任何商业计划书或问卷，开始创建您的第一个项目吧
-              </p>
-
-              <button
-                onClick={() => router.push('/')}
-                className="group relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-bold px-8 py-4 text-base rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="relative flex items-center justify-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  开始创建
-                </div>
-              </button>
-            </div>
+          <div className="text-center py-20 text-slate-500">
+            <Icons.Sparkles size={48} className="mx-auto mb-4 opacity-20" />
+            <p>暂无历史记录</p>
           </div>
         ) : (
-          <div className="space-y-4 sm:space-y-6">
-            {savedItems.map((item) => {
-              const typeInfo = getTypeInfo(item.type);
-              return (
-                <div
-                  key={item.id}
-                  className="group relative"
-                >
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
+          savedItems.map((item) => {
+            const typeTag = getTypeTag(item);
+            return (
+              <div
+                key={item.id}
+                className="group relative bg-[#1e1b4b]/50 hover:bg-[#1e1b4b] border border-white/5 hover:border-purple-500/30 rounded-xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-purple-900/20"
+              >
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                  {/* Icon Box */}
+                  <div
+                    className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                      item.type === 'questionnaire'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-blue-500/20 text-blue-400'
+                    }`}
+                  >
+                    <Icons.FileText size={24} />
+                  </div>
 
-                  <div className="relative bg-black/40 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-white/10 hover:border-white/20 transition-all">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
-                      {/* Icon & Type */}
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className={`relative flex-shrink-0 p-3 rounded-xl ${typeInfo.color}`}>
-                          <div className="absolute inset-0 bg-white/20 rounded-xl blur"></div>
-                          <div className="relative">
-                            {typeInfo.icon}
-                          </div>
-                        </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-bold text-white">{item.title}</h3>
+                      <span className={`text-xs px-2 py-0.5 rounded text-white ${typeTag.color}`}>
+                        {typeTag.label}
+                      </span>
+                      <span className="text-xs text-slate-500 flex items-center">
+                        <Icons.Clock size={12} className="mr-1" />
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </div>
 
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 truncate">
-                            {item.title}
-                          </h3>
-
-                          <div className="flex flex-wrap items-center gap-3 text-sm">
-                            <span className={`px-3 py-1 rounded-lg ${typeInfo.color} text-white font-medium`}>
-                              {typeInfo.label}
-                            </span>
-                            <span className="flex items-center gap-1.5 text-white/60">
-                              <Calendar className="w-4 h-4" />
-                              {formatDate(item.createdAt)}
-                            </span>
-                            {item.financialModel && (
-                              <span className="px-3 py-1 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 text-xs font-medium border border-yellow-500/30">
-                                含财务模型
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Content Preview */}
-                      <div className="flex-1 min-w-0 lg:max-w-md">
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                          <p className="text-sm text-white/70 line-clamp-2 mb-2">
-                            <span className="font-semibold text-blue-400">问题：</span>
-                            {item.elements.problem}
-                          </p>
-                          <p className="text-sm text-white/70 line-clamp-1">
-                            <span className="font-semibold text-green-400">方案：</span>
-                            {item.elements.solution}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-3 w-full lg:w-auto">
-                        <button
-                          onClick={() => handleView(item)}
-                          className="flex-1 lg:flex-initial group/btn relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold px-6 py-3 rounded-xl hover:shadow-xl transition-all duration-300 hover:scale-105"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-                          <div className="relative flex items-center justify-center gap-2">
-                            <Eye className="w-4 h-4" />
-                            <span>查看</span>
-                          </div>
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(item.id, item.title)}
-                          className="group/del p-3 bg-white/5 hover:bg-red-500/20 rounded-xl transition-all border border-white/10 hover:border-red-500/50"
-                          title="删除"
-                        >
-                          <Trash2 className="w-4 h-4 text-white/60 group-hover/del:text-red-400 transition-colors" />
-                        </button>
-                      </div>
+                    {/* Problem/Solution Grid */}
+                    <div className="bg-[#0f0a1e]/50 rounded-lg p-3 border border-white/5 text-sm leading-relaxed text-slate-400 group-hover:text-slate-300 transition-colors">
+                      <p className="text-blue-400/80">
+                        <span className="font-semibold opacity-70">问题: </span>
+                        <span className="text-slate-400">{item.elements.problem}</span>
+                      </p>
+                      <p className="mt-1 text-emerald-400/80">
+                        <span className="font-semibold opacity-70">方案: </span>
+                        <span className="text-slate-400">{item.elements.solution}</span>
+                      </p>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
 
-      {/* Footer */}
-      <footer className="relative border-t border-white/10 bg-black/20 backdrop-blur-xl mt-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Sparkles className="w-5 h-5 text-purple-400" />
-            <span className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              PitchAI
-            </span>
-          </div>
-          <p className="text-white/40 text-sm">
-            让创业更简单 · AI驱动的商业计划书生成器
-          </p>
-        </div>
-      </footer>
+                  {/* Actions */}
+                  <div className="flex flex-row md:flex-col gap-2 shrink-0">
+                    <button
+                      onClick={() => handleView(item)}
+                      className="flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-purple-900/20 w-24"
+                    >
+                      <Icons.Eye size={16} className="mr-2" />
+                      查看
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id, item.title)}
+                      className="flex items-center justify-center px-4 py-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-400 rounded-lg transition-colors border border-white/5 w-24 md:w-auto md:h-auto aspect-square md:aspect-auto"
+                      title="删除"
+                    >
+                      <Icons.Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
